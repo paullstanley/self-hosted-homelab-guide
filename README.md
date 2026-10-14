@@ -50,6 +50,7 @@ The guides are **modular**. Each page stands on its own: if you only own one of 
 | Prove a build or a change works | [Verification](docs/operations/verification.md) |
 | Back everything up, and keep secrets out of Git | [Backups and secrets](docs/operations/backups-and-secrets.md) |
 | Reboots, upgrades, periodic checks | [Maintenance](docs/operations/maintenance.md) |
+| See every node, pod, Service, ingress route and Pi-hole on one page (Prometheus and Grafana) | [Monitoring with Grafana](docs/operations/monitoring-grafana.md) |
 | Where each firmware and software package comes from, and how to update it | [Software and firmware](docs/operations/software-and-firmware.md) |
 | Review the router and access point settings, and export them without leaking secrets | [Security review](docs/operations/security-review.md) |
 | Fix a problem | [Troubleshooting](docs/operations/troubleshooting.md) |
@@ -70,7 +71,7 @@ The short version is below. The full version, with downloads, flashing, first bo
 | 7 | Optional fourth server | [Mac in a Lima VM](docs/hardware/mac-lima-vm.md) |
 | 8 | Apps | [Homebridge](docs/apps/homebridge.md), [Kasa](docs/apps/homebridge-kasa-across-networks.md), [Cameras](docs/apps/homebridge-cameras.md), [Seerr](docs/apps/seerr-cloudflare-tunnel.md) |
 | 9 | Optional media server (a Mac and a Windows PC outside the cluster) | [Media stack overview](docs/media/media-stack-overview.md), [Plex](docs/media/plex-media-server.md), [qBittorrent behind a VPN](docs/media/qbittorrent-windows-vpn.md), [Jackett and Prowlarr](docs/media/jackett-and-prowlarr.md), optionally [FlareSolverr](docs/media/flaresolverr.md), [Sonarr and Radarr](docs/media/sonarr-and-radarr.md) |
-| 10 | Optional hardening | [Node firewall](docs/kubernetes/node-firewall.md) |
+| 10 | Optional hardening and monitoring | [Node firewall](docs/kubernetes/node-firewall.md), [Monitoring with Grafana](docs/operations/monitoring-grafana.md) |
 | 11 | Tidy up addresses and names | [Address plan](docs/network/address-plan.md) |
 | 12 | Prove it, back it up | [Verification](docs/operations/verification.md), [Backups and secrets](docs/operations/backups-and-secrets.md) |
 

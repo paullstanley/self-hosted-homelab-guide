@@ -470,7 +470,8 @@ Each is independent.
 | One Raspberry Pi | The cluster has quorum without it | Phase 5, then rejoin as in [HA k3s cluster](../kubernetes/k3s-ha-cluster.md#step-2-second-and-third-server) (delete the old node object first) | `sudo kubectl get nodes`; Pi-hole placement one pod per Pi; DNS Director rule for its MAC |
 | The whole cluster | Pis prepared; etcd snapshot and token if restoring | Phase 6, or restore ([Backups and secrets](../operations/backups-and-secrets.md#step-4-cluster-etcd-snapshot-and-token)) | Everything from Phase 8 on |
 | MetalLB, kube-vip, Traefik address | Cluster | [Load balancers](../kubernetes/load-balancers.md) | `.10`, `.11`, `.12` answer |
-| Pi-hole | MetalLB, Traefik | [Pi-hole](../apps/pihole.md) | Router `verify`; one pod per Pi, `2/2` |
+| Pi-hole | MetalLB, Traefik | [Pi-hole](../apps/pihole.md) | Router `verify`; one pod per Pi, `3/3` |
+| Monitoring (Prometheus, Grafana) | Traefik, Pi-hole, the `monitoring-host` node label | [Monitoring with Grafana](../operations/monitoring-grafana.md) | Its Step 8 target check |
 | Homebridge | Traefik; router IoT rules for Kasa | [Homebridge](../apps/homebridge.md), restore its backup | Home app accessories respond; pod DNS block |
 | Seerr and tunnel | Traefik; Cloudflare | [Seerr](../apps/seerr-cloudflare-tunnel.md) | Public name loads; no 502 |
 | Mac VM | Cluster with kube-vip | [Mac in a Lima VM](../hardware/mac-lima-vm.md) | Joined on `lima0` under the right name |

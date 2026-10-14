@@ -97,7 +97,9 @@ sudo kubectl -n pihole get pods -o wide
 
 If `helm` cannot reach the cluster, run `export KUBECONFIG=/etc/rancher/k3s/k3s.yaml` once in the session and run helm with `sudo -E`.
 
-You should see three pods at `2/2 Running`, one on each labelled node. **Each pod takes several minutes.** It waits 60 seconds on purpose (`misc_delay_startup: "60"`) and then downloads every blocklist.
+You should see three pods at `3/3 Running` (Pi-hole, the DoH sidecar and the metrics exporter), one on each labelled node. **Each pod takes several minutes.** It waits 60 seconds on purpose (`misc_delay_startup: "60"`) and then downloads every blocklist.
+
+**On a brand-new cluster without monitoring.** The values file turns on a `PodMonitor` for Grafana ([Monitoring with Grafana](../operations/monitoring-grafana.md)). That type only exists once the monitoring stack is installed; until then the install fails with `no matches for kind "PodMonitor"`. Add `--set monitoring.podMonitor.enabled=false` to the `helm upgrade` line, and run the plain line again after installing monitoring. Grafana is also where all three pods' statistics appear on one page; each pod's own web UI only shows its own queries.
 
 ### Step 5. Point clients at it
 
@@ -364,7 +366,7 @@ sudo kubectl -n metallb-system get pods -o wide
 
 | Symptom | Cause | Fix |
 | --- | --- | --- |
-| No pod is `2/2 Running` | Image pull failure (node DNS) or the admin Secret is missing | `sudo kubectl -n pihole describe pod <name> \| tail -20`; then node DNS or Step 2 |
+| No pod is `3/3 Running` | Image pull failure (node DNS) or the admin Secret is missing | `sudo kubectl -n pihole describe pod <name> \| tail -20`; then node DNS or Step 2 |
 | Pods are `1/2` | The sidecar or Pi-hole itself is failing | `sudo kubectl -n pihole logs <pod> -c cloudflared --tail=20` and `-c pihole --tail=40` |
 | Pod `1/2` after pulling a fresh image | A cloudflared build without `proxy-dns` | Keep `doh.tag: "2025.9.1"` |
 | Pods fine, Services show `.11`, no answers | MetalLB is not announcing, or announces from a node with no healthy pod | `sudo kubectl -n metallb-system logs -l component=speaker --tail=30`; restart the speakers with `sudo kubectl -n metallb-system rollout restart daemonset speaker` |

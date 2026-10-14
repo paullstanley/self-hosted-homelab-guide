@@ -14,3 +14,7 @@ tls-san:
 # or it takes Pi-hole and Traefik back onto the nodes' own addresses after a restart.
 disable:
   - servicelb
+# Etcd metrics on this node's address, port 2381, for Prometheus
+# (docs/operations/monitoring-grafana.md, Phase 2). Plain HTTP with no login: the node
+# firewall blocks 2381 from the LAN.
+etcd-expose-metrics: true

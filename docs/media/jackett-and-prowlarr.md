@@ -96,7 +96,7 @@ The settings are in the **Jackett Configuration** section at the bottom of the d
 | Disable auto-update | On (updates disabled) | Prefer automatic updates. Indexers change their pages often and Jackett fixes its indexer definitions in new releases, so an old Jackett slowly loses indexers. If you keep updates off, update by hand regularly ([Updating](#updating-jackett)) |
 | Cache enabled, cache TTL | On, TTL `2100` seconds | Fine as is. Jackett keeps recent results for the TTL (time to live) so repeated identical searches do not hit the indexer again |
 | Proxy | None | See [Indexer traffic and privacy](#indexer-traffic-and-privacy) |
-| FlareSolverr API URL | Empty | See [FlareSolverr](#flaresolverr-and-cloudflare-challenges) |
+| FlareSolverr API URL | Empty at first; `http://192.168.50.13:8191` once FlareSolverr runs | See [FlareSolverr](#flaresolverr-and-cloudflare-challenges) |
 | Enhanced logging | Off | Turn it on only while troubleshooting; it writes much more |
 
 **The API key** is shown at the top right of the dashboard. Sonarr and Radarr need it. It is stored in `~/.config/Jackett/ServerConfig.json`. Treat it as a password: anyone with it can use your configured indexers through Jackett.
@@ -170,7 +170,7 @@ What to know before you set it up:
 - **It does not solve captchas.** The [FlareSolverr README](https://github.com/FlareSolverr/FlareSolverr) currently says: "At this time none of the captcha solvers work." Indexers whose challenge is hCaptcha or an image captcha stay broken even with FlareSolverr; Jackett then reports "a captcha was detected".
 - **Where it runs matters.** There is no macOS build, and the cookies it earns may only be valid from the same public IP address as Jackett. Do not run it on a PC whose traffic goes through a VPN while Jackett's does not.
 
-How to choose where to run it, the cluster manifest, the Jackett and Prowlarr settings and every FlareSolverr error message are on [FlareSolverr for Jackett and Prowlarr](./flaresolverr.md). In the build, three indexers failed their test with the message above while the others worked; a FlareSolverr manifest for the cluster was prepared for them but **not yet applied by the author**. If an indexer still fails, or shows a captcha, remove it from Jackett **and** from Sonarr and Radarr (Step 7), and rely on indexers that answer directly.
+How to choose where to run it, the cluster manifest, the Jackett and Prowlarr settings and every FlareSolverr error message are on [FlareSolverr for Jackett and Prowlarr](./flaresolverr.md). In the build, three indexers failed their test with the message above while the others worked; FlareSolverr on the cluster fixed them (October 2026) once Jackett was also allowed under macOS **Local Network** ([FlareSolverr, Step 4a](./flaresolverr.md#step-4a-let-jackett-onto-the-local-network-macos)). If an indexer still fails, or shows a captcha, remove it from Jackett **and** from Sonarr and Radarr (Step 7), and rely on indexers that answer directly.
 
 ## Indexer traffic and privacy
 

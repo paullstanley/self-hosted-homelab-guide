@@ -30,7 +30,7 @@ The example layout:
 | --- | --- | --- | --- |
 | `192.168.50.10` | kube-vip | Kubernetes API (6443) | The server holding it dies |
 | `192.168.50.11` and `fd00:1234:5678:50::11` | MetalLB | A DNS service (Pi-hole): 53, and its web port 80 | The announcing node dies or has no healthy pod of that service |
-| `192.168.50.12` | MetalLB | Traefik (80, 443): every web app | The announcing node dies |
+| `192.168.50.12` | MetalLB | Traefik (80, 443): every web app (Pi-hole UI, Homebridge, Seerr, Grafana) | The announcing node dies |
 | `192.168.50.13` | MetalLB | FlareSolverr (8191), LAN only: [FlareSolverr](../media/flaresolverr.md) | The announcing node dies |
 | `192.168.50.14` to `.15` | MetalLB | Free | |
 

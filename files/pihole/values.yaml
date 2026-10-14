@@ -100,8 +100,36 @@ admin:
   existingSecret: "pihole-admin"
   passwordKey: "password"
 
+# --- Metrics for Grafana -------------------------------------------------------------------------
+# An exporter container next to each Pi-hole reads that pod's own API (Pi-hole v6 API since
+# exporter v1.0.0) and serves the numbers on port 9617. The PodMonitor tells Prometheus
+# (files/monitoring/) to scrape all three, so Grafana shows every pod, summed or one by one.
+# The chart hands the exporter the admin password from the Secret above.
+# Needs the monitoring stack first (its PodMonitor type): docs/operations/monitoring-grafana.md.
+# On a brand-new cluster with no monitoring yet, install Pi-hole with
+#   --set monitoring.podMonitor.enabled=false
+# and run the plain helm line again once monitoring is installed.
+monitoring:
+  podMonitor:
+    enabled: true
+  sidecar:
+    enabled: true
+    port: 9617
+    image:
+      repository: ekofr/pihole-exporter
+      tag: v1.2.0          # newest release (12 Jul 2025); the chart default is v1.0.0
+      pullPolicy: IfNotPresent
+    resources:
+      requests:
+        cpu: 10m
+        memory: 32Mi
+      limits:
+        memory: 128Mi
+
 # --- Upstream: DoH via cloudflared ----------------------------------------------------------------
 # The chart points Pi-hole at 127.0.0.1#5053 automatically when doh.enabled is true.
+# Do NOT add ::1#5053 as a second upstream: the sidecar listens on IPv4 only, so that entry
+# would be a dead server, and it would be the same resolver anyway.
 # crazymax/cloudflared reads TUNNEL_DNS_UPSTREAM.
 doh:
   enabled: true
@@ -125,6 +153,21 @@ extraEnvVars:
   # Reverse lookups / local names to the router (IPv4 + the ULA /64). Arrays are ';'-separated.
   FTLCONF_dns_revServers: "true,192.168.50.0/24,192.168.50.1,home.example.com;true,fd00:1234:5678:50::/64,192.168.50.1,home.example.com"
   FTLCONF_dns_domainNeeded: "true"
+  # Never send reverse lookups for private addresses (192.168.x.x etc.) upstream.
+  # Safe here because local names come from this file and from the router (revServers above).
+  FTLCONF_dns_bogusPriv: "true"
+  # Validate DNSSEC. The upstream (Cloudflare, through the cloudflared sidecar) supports it.
+  FTLCONF_dns_dnssec: "true"
+  # Local domain. Pi-hole treats it as its own; unknown names under it go to the router
+  # (revServers above) and never upstream.
+  FTLCONF_dns_domain_name: "home.example.com"
+  # Pi-hole's built-in time server and clock sync: off. A container may not set the clock,
+  # and nothing on the network uses the pods for time.
+  FTLCONF_ntp_ipv4_active: "false"
+  FTLCONF_ntp_ipv6_active: "false"
+  FTLCONF_ntp_sync_active: "false"
+  # Web UI login lasts 24 hours idle instead of 30 minutes (a convenience; shorter is safer).
+  FTLCONF_webserver_session_timeout: "86400"
   # Encrypted-DNS bypass blocks (these are the defaults, kept explicit)
   FTLCONF_dns_specialDomains_mozillaCanary: "true"
   FTLCONF_dns_specialDomains_iCloudPrivateRelay: "true"
@@ -169,6 +212,7 @@ dnsmasq:
     # Web apps behind Traefik (MetalLB 192.168.50.12)
     - address=/hb.home.example.com/192.168.50.12
     - address=/traefik.home.example.com/192.168.50.12
+    - address=/grafana.home.example.com/192.168.50.12
     # Kubernetes API floating address (kube-vip)
     - address=/k3s.home.example.com/192.168.50.10
     # Router

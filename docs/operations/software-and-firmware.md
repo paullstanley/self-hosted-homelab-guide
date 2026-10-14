@@ -633,9 +633,9 @@ codesign --force --deep -s - /Applications/Sonarr.app && xattr -rd com.apple.qua
 | | |
 | --- | --- |
 | **Where** | [FlareSolverr/FlareSolverr](https://github.com/FlareSolverr/FlareSolverr), [releases](https://github.com/FlareSolverr/FlareSolverr/releases). Image `ghcr.io/flaresolverr/flaresolverr` (also `flaresolverr/flaresolverr` on Docker Hub), multi-arch: amd64, arm64, arm/v7, 386 |
-| **Download** | Newest seen in October 2026: **v3.5.0** (marked Latest). Ready-made binaries exist for Windows x64 and Linux x64 only; the cluster uses the image. The manifest [`files/flaresolverr/flaresolverr.yaml`](../../files/flaresolverr/flaresolverr.yaml) ships with `:latest` |
-| **First install** | `sudo kubectl apply -f files/flaresolverr/flaresolverr.yaml` ([FlareSolverr for Jackett and Prowlarr](../media/flaresolverr.md#step-3-apply-it)). **Not yet applied by the author** |
-| **Update** | Change the `image:` tag in the manifest to the new release (for example `ghcr.io/flaresolverr/flaresolverr:v3.5.0`), then `sudo kubectl apply -f files/flaresolverr/flaresolverr.yaml` and `sudo kubectl -n flaresolverr rollout status deploy/flaresolverr`. With `:latest` and `imagePullPolicy: IfNotPresent`, a node keeps its cached image, so pin a tag to control updates. No data to back up |
+| **Download** | Newest on 13 October 2026: **v3.5.2**. Ready-made binaries exist for Windows x64 and Linux x64 only; the cluster uses the image. The manifest [`files/flaresolverr/flaresolverr.yaml`](../../files/flaresolverr/flaresolverr.yaml) is pinned to `v3.5.2` |
+| **First install** | `sudo kubectl apply -f files/flaresolverr/flaresolverr.yaml` ([FlareSolverr for Jackett and Prowlarr](../media/flaresolverr.md#step-3-apply-it)). Running in the author's build since October 2026 |
+| **Update** | Change the `image:` tag in the manifest to the new release (for example `ghcr.io/flaresolverr/flaresolverr:v3.5.2`), then `sudo kubectl apply -f files/flaresolverr/flaresolverr.yaml` and `sudo kubectl -n flaresolverr rollout status deploy/flaresolverr`. With `:latest` and `imagePullPolicy: IfNotPresent`, a node keeps its cached image, so pin a tag to control updates. No data to back up |
 | **Check version** | `curl -s http://192.168.50.13:8191/` from the Jackett host; the JSON reply has a `version` field next to `"msg": "FlareSolverr is ready!"` |
 
 - **Skip v3.4.4.** Its release notes report a Linux binary bug; use v3.4.3 or v3.4.5 and later.
@@ -689,8 +689,8 @@ Update from the edge of the network inwards, and the cluster from the bottom up.
 | 10 | kubectl and Helm on admin machines | After each k3s minor | | `helm list -A` |
 | 11 | MetalLB | When a release fixes something you need; 0.16 only deliberately | Read release notes | `.11` and `.12` answer |
 | 12 | kube-vip | With the k3s minor, if pinned | | `.10` answers |
-| 13 | Pi-hole chart and image | Monthly, pinned dated tag | Note the values | One pod per Pi, `2/2`; [Pi-hole checks](../apps/pihole.md#check-it) |
-| 14 | DoH sidecar | Replace once (see above) | | `2/2` and encrypted upstream |
+| 13 | Pi-hole chart and image | Monthly, pinned dated tag | Note the values | One pod per Pi, `3/3`; [Pi-hole checks](../apps/pihole.md#check-it) |
+| 14 | DoH sidecar | Replace once (see above) | | `3/3` and encrypted upstream |
 | 15 | Homebridge image, then plugins | Monthly | UI backup | Accessories respond; pod DNS block |
 | 16 | Seerr | Monthly | Config volume backup | Public name loads |
 | 17 | cloudflared | With the Pi's `apt` updates | | Tunnel healthy |

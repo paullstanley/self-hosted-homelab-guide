@@ -6,6 +6,8 @@
 # Referenced by:
 #   files/pihole/values.yaml      -> pihole-redirect-https@kubernetescrd
 #   files/homebridge/values.yaml  -> homebridge-redirect-https@kubernetescrd
+#   files/monitoring/kube-prometheus-stack-values.yaml -> monitoring-redirect-https@kubernetescrd
+# Each namespace must exist before this file is applied (pihole, homebridge, monitoring).
 # Seerr has none on purpose: Cloudflare talks to it over plain HTTP and does HTTPS itself.
 apiVersion: traefik.io/v1alpha1
 kind: Middleware
@@ -22,6 +24,16 @@ kind: Middleware
 metadata:
   name: redirect-https
   namespace: homebridge
+spec:
+  redirectScheme:
+    scheme: https
+    permanent: true
+---
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: redirect-https
+  namespace: monitoring
 spec:
   redirectScheme:
     scheme: https

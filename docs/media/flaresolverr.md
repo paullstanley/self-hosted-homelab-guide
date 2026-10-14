@@ -6,7 +6,7 @@ Example addresses and names are explained in [Conventions](../start-here/convent
 
 | | |
 | --- | --- |
-| **Applies to** | Written for Jackett v0.24 on an Intel Mac (`media-1`, `192.168.50.2`) and a k3s v1.34 cluster with MetalLB v0.15.3 (Raspberry Pi 4 servers plus an arm64 Lima VM). The manifest [`files/flaresolverr/flaresolverr.yaml`](../../files/flaresolverr/flaresolverr.yaml) was **validated with kubeconform but not yet applied by the author**. Nothing on this page has been run against a live indexer yet |
+| **Applies to** | Written for Jackett v0.24 on an Intel Mac (`media-1`, `192.168.50.2`) and a k3s v1.34 cluster with MetalLB v0.15.3 (Raspberry Pi 4 servers plus an arm64 Lima VM). FlareSolverr v3.5.2 from the manifest [`files/flaresolverr/flaresolverr.yaml`](../../files/flaresolverr/flaresolverr.yaml). **Running in the author's build since October 2026**: the manifest applied as written, `curl` from the Mac answered "FlareSolverr is ready!", and Jackett's Cloudflare-challenged indexers passed their tests again |
 | **Also works for** | Prowlarr instead of Jackett (its settings are described from the Servarr wiki). Any Kubernetes cluster with a load balancer, or any Docker host. FlareSolverr on the same Mac, or on a Windows PC, is described below and **not verified by the author** |
 | **Time** | 15 minutes on the cluster, plus a test per indexer |
 | **You need first** | Jackett or Prowlarr running: [Jackett and Prowlarr](./jackett-and-prowlarr.md). For the recommended option, a k3s cluster with MetalLB: [Highly available k3s](../kubernetes/k3s-ha-cluster.md) and [Load balancers](../kubernetes/load-balancers.md) |
@@ -109,7 +109,25 @@ The first line creates the objects. The second waits until the pod is ready; the
 curl -s http://192.168.50.13:8191/
 ```
 
-Expected: a JSON line containing `"msg": "FlareSolverr is ready!"`, a `version` and a `userAgent`. Opening the same address in a browser on the Mac shows the same JSON.
+Expected: a JSON line containing `"msg": "FlareSolverr is ready!"`, a `version` and a `userAgent`. Opening the same address in a browser on the Mac shows the same JSON. In the build it answered `{"msg": "FlareSolverr is ready!", "version": "3.5.2", ...}`.
+
+### Step 4a. Let Jackett onto the local network (macOS)
+
+macOS asks each app for permission before it may connect to other devices on your home network (System Settings > Privacy & Security > **Local Network**). Terminal and `curl` don't need it, so Step 4 can pass while Jackett is still blocked. A background app such as Jackett often never shows the prompt.
+
+Without the permission, every Jackett test fails with:
+
+```
+Error connecting to FlareSolverr server: System.Net.Http.HttpRequestException: No route to host (192.168.50.13:8191) ---> System.Net.Sockets.SocketException (65): No route to host
+```
+
+Error `65` is macOS's own code for "No route to host". This exact error happened in the build, and allowing Jackett fixed it.
+
+1. On the Jackett Mac: **System Settings > Privacy & Security > Local Network**.
+2. Switch **Jackett** on. If macOS shows a prompt asking whether Jackett may find devices on local networks, click **Allow**.
+3. If Jackett isn't listed: quit it, start it once by hand (not as the background service) so macOS asks, allow it, then go back to the service.
+
+The same permission applies to every app on that Mac that talks to another machine: Sonarr and Radarr reaching the download client, Plex reaching other devices. If one of them can't reach something that Terminal reaches fine, check this list first.
 
 ### Step 5. Point Jackett at it
 
@@ -121,6 +139,8 @@ Expected: a JSON line containing `"msg": "FlareSolverr is ready!"`, a `version` 
 6. In Sonarr and Radarr, open **Settings > Indexers**, click the indexer, and click **Test**. Both must pass before searches use it.
 
 > **Pitfall:** `127.0.0.1` or `localhost` as the API URL only works when FlareSolverr runs natively on the same machine as Jackett. For the cluster, use the MetalLB address.
+
+> **Pitfall: "No route to host" with `curl` working.** That is macOS blocking Jackett, not the network. Step 4a.
 
 ### Step 6. Prowlarr instead of Jackett
 
@@ -138,7 +158,7 @@ Prowlarr only uses the proxy when it detects Cloudflare, and only for indexers t
 
 Once it works:
 
-- **Pin the image tag.** Replace `:latest` with a release tag, for example `ghcr.io/flaresolverr/flaresolverr:v3.5.0` (marked Latest on the [releases page](https://github.com/FlareSolverr/FlareSolverr/releases) at the time of writing). Then updates happen only when you change the tag ([Software and firmware](../operations/software-and-firmware.md#flaresolverr)). Avoid v3.4.4; its release notes report a Linux binary bug and recommend v3.4.3 or v3.4.5 and later.
+- **The image tag is pinned.** The manifest uses `ghcr.io/flaresolverr/flaresolverr:v3.5.2`, the newest release on 13 October 2026 and the version running in the build ([releases page](https://github.com/FlareSolverr/FlareSolverr/releases)). To update, change the tag. Then updates happen only when you change the tag ([Software and firmware](../operations/software-and-firmware.md#flaresolverr)). Avoid v3.4.4; its release notes report a Linux binary bug and recommend v3.4.3 or v3.4.5 and later.
 - **Allow only the Jackett host.** Change `loadBalancerSourceRanges` from `192.168.50.0/24` to `192.168.50.2/32`.
 
 **Run on: server-1**, after editing the file.
@@ -214,8 +234,9 @@ In Jackett, **Test** on each previously failing indexer is green. In Sonarr and 
 | An indexer still fails with "captcha was detected" | It shows hCaptcha or an image captcha, which FlareSolverr cannot solve | Nothing fixes this today. Remove the indexer from Jackett and from Sonarr and Radarr |
 | "The cookies provided by FlareSolverr are not valid" | FlareSolverr and Jackett leave the house by different public addresses, usually because one of them is behind a VPN or proxy | Run FlareSolverr where Jackett's traffic goes: the cluster or the same Mac. Not on the VPN'd torrent PC |
 | Anyone can use your FlareSolverr | It has no authentication | Never forward `8191` on the router or publish it through a tunnel. Keep `loadBalancerSourceRanges` to the LAN or the Jackett host |
+| "No route to host" in Jackett, but `curl` works | macOS Local Network permission | Step 4a |
 | `localhost` as the API URL fails | FlareSolverr is on another machine, or in a container | Use the address Jackett can actually reach, here `http://192.168.50.13:8191` |
-| The behaviour changes after a pod restart | `:latest` pulled a new release | Pin a release tag (Step 7) |
+| The behaviour changes after a pod restart | `:latest` pulled a new release | Keep a pinned release tag (Step 7; the manifest ships pinned) |
 | The pod is killed during a solve | Chrome needed more than the 1 GiB limit | Jackett retries the request. If it happens often, raise the limit (Troubleshooting) |
 | A Service already used `.13` | Two Services asked for the same address | Check first (Step 1); choose another free pool address |
 | Indexers time out after a long wait | The solve took longer than Jackett's FlareSolverr Max Timeout, or than Jackett's own limit of roughly 100 seconds | Keep the default timeout; read FlareSolverr's log; update FlareSolverr |
@@ -229,7 +250,9 @@ These are the cases on [Jackett's troubleshooting page](https://github.com/Jacke
 | Symptom | Cause | Fix |
 | --- | --- | --- |
 | "Challenge detected but FlareSolverr is not configured" | The indexer is behind Cloudflare and no FlareSolverr API URL is set | Try the indexer's alternate site links in its Jackett settings, if it has any that do not use Cloudflare. Otherwise set the API URL (Step 5), or wait and test again later |
-| "Error connecting to FlareSolverr server" | FlareSolverr is set but not running, or the URL is wrong | Open the API URL in a browser on the Jackett host: it must show `FlareSolverr is ready!`. Check the URL form: native on the same machine `http://127.0.0.1:8191`; another machine or Docker host by its LAN address, for example `http://192.168.50.13:8191`; a container by its IP or name only if Jackett is in the same Docker network. With Jackett in Docker, `127.0.0.1` and `localhost` do not work |
+| "Error connecting to FlareSolverr server: ... No route to host ... SocketException (65)" while `curl` to the same address works from the Jackett Mac | macOS Local Network permission is off for Jackett | System Settings > Privacy & Security > Local Network > Jackett on, or **Allow** at the prompt (Step 4a). Seen in the build |
+| "Error parsing Json Response: Status=Forbidden" with a 403 page that mentions `/cdn-cgi/challenge-platform/` | Cloudflare refused the request outright instead of showing a challenge. Jackett expected JSON and didn't recognise a challenge, so it never asked FlareSolverr. Seen on one indexer in the build, intermittently | Watch FlareSolverr's log while you press Test: no request means Jackett didn't hand it over. Update Jackett (indexer definitions ship with it), try again later, or disable the indexer |
+| "Error connecting to FlareSolverr server" (curl fails too) | FlareSolverr is set but not running, or the URL is wrong | Open the API URL in a browser on the Jackett host: it must show `FlareSolverr is ready!`. Check the URL form: native on the same machine `http://127.0.0.1:8191`; another machine or Docker host by its LAN address, for example `http://192.168.50.13:8191`; a container by its IP or name only if Jackett is in the same Docker network. With Jackett in Docker, `127.0.0.1` and `localhost` do not work |
 | "FlareSolverr was able to process the request, but a captcha was detected" | Image captcha or hCaptcha | No captcha solver works at present ([What it can and cannot solve](#what-it-can-and-cannot-solve)). Remove the indexer, or follow FlareSolverr issues #24 and #31 |
 | "The cookies provided by FlareSolverr are not valid" | Different networks or public addresses, a proxy or VPN between them; or the site changed its login page; or the site is offline (for example an expired domain) | Put both on the same network, ideally the same device, with no VPN between. If they already are, check the site in a browser; wait for a Jackett update that fixes the indexer |
 | Timeout on an indexer test | FlareSolverr did not solve within the Max Timeout set on the Jackett dashboard; Jackett gives up after roughly 100 seconds with no reply | Read FlareSolverr's log (below). Update FlareSolverr. Keep the Max Timeout at its default |

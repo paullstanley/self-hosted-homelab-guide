@@ -6,7 +6,8 @@
 #
 # What it does
 #   - Other cluster nodes and the pod/service networks: allowed in full (k3s needs this).
-#   - etcd, kubelet, flannel and MetalLB's internal ports: blocked for everything else.
+#   - etcd, kubelet, flannel and MetalLB's internal ports, and the monitoring stack's metrics
+#     ports (node-exporter 9100, etcd metrics 2381): blocked for everything else.
 #   - Your home ranges (192.168.0.0/16, which covers the main LAN 192.168.50.x, the VPN
 #     subnet 192.168.0.x and the IoT network; plus the LAN's IPv6 range): allowed for everything else
 #     (SSH, kubectl, Pi-hole, Traefik, Homebridge and HomeKit discovery keep working).
@@ -94,6 +95,9 @@ ufw deny 2379:2380/tcp comment 'etcd - nodes only'             >/dev/null
 ufw deny 10250/tcp     comment 'kubelet - nodes only'          >/dev/null
 ufw deny 8472/udp      comment 'flannel vxlan - nodes only'    >/dev/null
 ufw deny 7946          comment 'metallb memberlist - nodes only' >/dev/null
+# Metrics ports with no login. Prometheus is a pod, so rules 1 and 2 already let it in.
+ufw deny 9100/tcp      comment 'node-exporter - cluster only'  >/dev/null
+ufw deny 2381/tcp      comment 'etcd metrics - cluster only'   >/dev/null
 
 echo "==> 4. Main LAN: allow everything else"
 ufw allow from "$LAN4"   comment 'main LAN'            >/dev/null

@@ -23,7 +23,7 @@ Example addresses and names are explained in [Conventions](../start-here/convent
 | **Sonarr** | Keeps a list of wanted TV series. Watches the indexers for new episodes, sends them to the downloader, then renames and files the result | Mac `media-1` | [Sonarr and Radarr](sonarr-and-radarr.md) |
 | **Radarr** | The same for films | Mac `media-1` | [Sonarr and Radarr](sonarr-and-radarr.md) |
 | **Jackett** or **Prowlarr** | Indexer managers. They talk to each of your indexers (sites or services that list releases) and offer them to Sonarr and Radarr in one standard format, called Torznab | Mac `media-1` (Jackett) | [Jackett and Prowlarr](jackett-and-prowlarr.md) |
-| **FlareSolverr** (optional) | A helper for Jackett or Prowlarr that gets past Cloudflare's browser checks on some indexers. Not captchas | The k3s cluster, `192.168.50.13:8191` (prepared, not yet applied by the author) | [FlareSolverr](flaresolverr.md) |
+| **FlareSolverr** (optional) | A helper for Jackett or Prowlarr that gets past Cloudflare's browser checks on some indexers. Not captchas | The k3s cluster, `192.168.50.13:8191` (running in the build) | [FlareSolverr](flaresolverr.md) |
 | **qBittorrent** | The download client. Sonarr and Radarr hand it a torrent and a category; it downloads and seeds | Windows PC `torrent-pc`, behind the VPN | [qBittorrent on Windows behind a VPN](qbittorrent-windows-vpn.md) |
 | **Seerr** | A request site for the household. A request becomes an entry in Sonarr or Radarr | k3s cluster, published through a Cloudflare tunnel | [Seerr](../apps/seerr-cloudflare-tunnel.md) |
 

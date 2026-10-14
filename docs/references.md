@@ -330,6 +330,19 @@ Every external document cited by the guides, grouped by the page that cites it. 
 - [Asuswrt-Merlin wiki: Scheduled tasks (cron jobs)](https://github.com/RMerl/asuswrt-merlin.ng/wiki/Scheduled-tasks-(cron-jobs)): the `cru` command and why jobs must be re-added at boot.
 - [Asuswrt-Merlin wiki: User scripts](https://github.com/RMerl/asuswrt-merlin.ng/wiki/User-scripts): `services-start` and the other `/jffs/scripts` hooks.
 
+### [Monitoring with Grafana and Prometheus](operations/monitoring-grafana.md)
+
+- [kube-prometheus-stack chart](https://github.com/prometheus-community/helm-charts/tree/main/charts/kube-prometheus-stack): README (OCI install, CRD upgrades, control-plane authentication) and `values.yaml`.
+- [prometheus-community releases](https://github.com/prometheus-community/helm-charts/releases): chart versions (92.3.1 on 13 October 2026).
+- [Grafana community Helm chart](https://github.com/grafana-community/helm-charts/tree/main/charts/grafana): `admin.existingSecret`, persistence, `deploymentStrategy`, provisioned dashboards. The old [grafana/helm-charts](https://github.com/grafana/helm-charts/tree/main/charts/grafana) chart carries the migration notice; [Grafana Helm docs](https://grafana.com/docs/helm-charts/).
+- [k3s: metrics](https://docs.k3s.io/reference/metrics): one metrics registry per k3s process, so one endpoint is enough.
+- [k3s: server flags](https://docs.k3s.io/cli/server): `etcd-expose-metrics`.
+- [k3s etcd source, v1.34.3](https://github.com/k3s-io/k3s/blob/v1.34.3%2Bk3s1/pkg/etcd/etcd.go): the metrics listener on the node address, port 2381.
+- [k3s bundled Traefik manifest, v1.34.3](https://github.com/k3s-io/k3s/blob/v1.34.3%2Bk3s1/manifests/traefik.yaml) and [Traefik chart 37.1.0 values](https://github.com/traefik/traefik-helm-chart/blob/v37.1.0/traefik/values.yaml): the metrics port.
+- [dotdc/grafana-dashboards-kubernetes](https://github.com/dotdc/grafana-dashboards-kubernetes), [Node Exporter Full](https://grafana.com/grafana/dashboards/1860), [Traefik Kubernetes dashboard](https://grafana.com/grafana/dashboards/17347-traefik-official-kubernetes-dashboard/).
+- [eko/pihole-exporter](https://github.com/eko/pihole-exporter): the Pi-hole v6 exporter and its dashboard.
+- [SUSE forum: lightweight metrics for a k3s Pi cluster](https://forums.suse.com/t/lightweight-metrics-options-for-k3s-pi-cluster/18796): retention on 2 GB nodes.
+
 ### [Reviewing a home network like this one](operations/security-review.md)
 
 - [Asuswrt-Merlin changelog](https://www.asuswrt-merlin.net/changelog): UPnP off by default from 388.10, AiCloud removed in 388.11, WireGuard and hardware NAT, OpenVPN changes in 388.12.

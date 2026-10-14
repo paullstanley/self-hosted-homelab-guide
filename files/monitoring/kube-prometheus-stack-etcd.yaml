@@ -1,0 +1,39 @@
+# Phase 2 (optional): etcd metrics for the four embedded-etcd members.
+# Used ON TOP of kube-prometheus-stack-values.yaml, never alone (Helm merges the two, later wins).
+#
+# First, on EVERY k3s server, one at a time: "etcd-expose-metrics: true" in
+# /etc/rancher/k3s/config.yaml and a k3s restart (docs/operations/monitoring-grafana.md, Phase 2). Without that, etcd only
+# listens for metrics on 127.0.0.1:2381 and these targets stay down.
+#
+# Run on: server-1, in the root of this repo.
+#
+#   sudo helm upgrade --install kps oci://ghcr.io/prometheus-community/charts/kube-prometheus-stack \
+#     --version 92.3.1 -n monitoring \
+#     -f files/monitoring/kube-prometheus-stack-values.yaml \
+#     -f files/monitoring/kube-prometheus-stack-etcd.yaml
+#
+# With the option on, k3s adds http://<node address>:2381 next to http://127.0.0.1:2381
+# (k3s source, pkg/etcd/etcd.go). Plain HTTP, no login: the node firewall keeps 2381 away from
+# the LAN (files/firewall/k3s-firewall.sh, rule 3) while Prometheus, a pod, still reaches it.
+
+defaultRules:
+  rules:
+    etcd: true
+
+kubeEtcd:
+  enabled: true
+  # The four servers. Change this list when a server is added, removed or readdressed.
+  endpoints:
+    - 192.168.50.5     # server-1
+    - 192.168.50.6     # server-2
+    - 192.168.50.7     # server-3
+    - 192.168.50.146   # server-4 (the Lima VM)
+  service:
+    enabled: true
+    port: 2381
+    targetPort: 2381
+  serviceMonitor:
+    enabled: true
+    scheme: http
+    # The metrics port needs no token; don't send one.
+    authorization: null

@@ -13,6 +13,10 @@ flannel-ipv6-masq: true
 flannel-iface: lima0
 disable:
   - servicelb
+# Etcd metrics on this node's address, port 2381, for Prometheus
+# (docs/operations/monitoring-grafana.md, Phase 2). Plain HTTP with no login: the node
+# firewall blocks 2381 from the LAN.
+etcd-expose-metrics: true
 # flannel-iface MUST be lima0 (the bridged LAN interface). With eth0 the VM advertises its
 # private NAT address 192.168.5.15 and its pods cannot reach cluster DNS.
 # The IPv6 node-ip is the VM's SLAAC address; it is derived from the VM's MAC

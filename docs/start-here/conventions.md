@@ -45,6 +45,7 @@ Keep the load-balancer addresses (`.10` to `.15` here) **outside** the router's 
 | Name | Points at |
 | --- | --- |
 | `pihole.home.example.com` | Traefik, `192.168.50.12` |
+| `grafana.home.example.com` | Traefik, `192.168.50.12` (Grafana: [Monitoring](../operations/monitoring-grafana.md)) |
 | `hb.home.example.com` | Traefik, `192.168.50.12` (Homebridge) |
 | `k3s.home.example.com` | Kubernetes API, `192.168.50.10` |
 | `request.example.com` | A public name on Cloudflare for Seerr |

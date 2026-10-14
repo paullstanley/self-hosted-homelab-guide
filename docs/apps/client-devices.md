@@ -31,7 +31,7 @@ A device finds `pihole.home.example.com` by asking its DNS server. On the home n
 The lines to add are kept in [`files/clients/work-mac-hosts.txt`](../../files/clients/work-mac-hosts.txt):
 
 ```
-192.168.50.12 pihole.home.example.com hb.home.example.com traefik.home.example.com
+192.168.50.12 pihole.home.example.com hb.home.example.com traefik.home.example.com grafana.home.example.com
 192.168.50.10 k3s.home.example.com
 ```
 
@@ -53,7 +53,7 @@ Add the current ones:
 
 ```bash
 sudo tee -a /etc/hosts <<'EOF'
-192.168.50.12 pihole.home.example.com hb.home.example.com traefik.home.example.com
+192.168.50.12 pihole.home.example.com hb.home.example.com traefik.home.example.com grafana.home.example.com
 192.168.50.10 k3s.home.example.com
 EOF
 ```

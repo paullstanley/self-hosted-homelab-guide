@@ -44,6 +44,8 @@ Because rule 3 comes before rule 4, a device on the LAN is allowed everything **
 | 10250/tcp | kubelet API (runs and inspects containers on the node) | Nodes and pods only |
 | 8472/udp | flannel VXLAN, the tunnel carrying pod traffic between nodes | Nodes only |
 | 7946 (tcp and udp) | MetalLB memberlist, by which the speakers watch each other | Nodes only |
+| 9100 (tcp) | node-exporter, if you run [Monitoring](../operations/monitoring-grafana.md). No login | Nodes and pods only |
+| 2381 (tcp) | etcd metrics, once `etcd-expose-metrics: true` is set ([Monitoring](../operations/monitoring-grafana.md), Phase 2). Plain HTTP, no login | Nodes and pods only |
 | 6443/tcp | Kubernetes API | Nodes, pods, and your home ranges (so `kubectl` works from a laptop) |
 | 22/tcp | SSH | Your home ranges |
 | App ports on the node itself, for example a host-network app's web UI | | Your home ranges |

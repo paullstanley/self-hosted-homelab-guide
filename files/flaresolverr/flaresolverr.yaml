@@ -4,6 +4,8 @@
 #   curl -s http://192.168.50.13:8191/      # expect {"msg": "FlareSolverr is ready!", ...}
 #
 # Then Jackett (on the media server Mac, media-1): Dashboard > FlareSolverr API URL = http://192.168.50.13:8191
+# and on macOS: System Settings > Privacy & Security > Local Network > Jackett ON (without it Jackett
+# gets "No route to host ... (65)" while curl works).
 # Full runbook: docs/media/flaresolverr.md
 #
 # Why the cluster and not the torrent PC: Cloudflare's clearance cookie is tied to the public IP that solved
@@ -38,8 +40,9 @@ spec:
     spec:
       containers:
         - name: flaresolverr
-          # Pin a release tag (see github.com/FlareSolverr/FlareSolverr/releases) once it works.
-          image: ghcr.io/flaresolverr/flaresolverr:latest
+          # Pinned (newest release on 13 Oct 2026). To update, change the tag:
+          # github.com/FlareSolverr/FlareSolverr/releases . Skip v3.4.4.
+          image: ghcr.io/flaresolverr/flaresolverr:v3.5.2
           imagePullPolicy: IfNotPresent
           ports:
             - name: http

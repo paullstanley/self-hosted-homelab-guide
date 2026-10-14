@@ -1,0 +1,294 @@
+# Cluster monitoring: Prometheus + Grafana at https://grafana.home.example.com
+# Chart: kube-prometheus-stack 92.3.1 (prometheus-operator v0.94.1, Grafana 13.2.4), from the
+# chart's OCI registry. Namespace: monitoring. Release name: kps.
+#
+# Run on: server-1, in the root of this repo. Steps, checks and trouble: docs/operations/monitoring-grafana.md
+#
+#   sudo helm upgrade --install kps oci://ghcr.io/prometheus-community/charts/kube-prometheus-stack \
+#     --version 92.3.1 -n monitoring -f files/monitoring/kube-prometheus-stack-values.yaml
+#
+# Before the first install (docs/operations/monitoring-grafana.md, Steps 1 to 3):
+#   - label the node that holds the data:   sudo kubectl label node server-1 monitoring-host=true
+#   - the namespace and the Grafana login:   sudo kubectl create namespace monitoring
+#     sudo kubectl -n monitoring create secret generic grafana-admin \
+#       --from-literal=admin-user=admin --from-literal=admin-password='<GRAFANA_ADMIN_PASSWORD>'
+#   - the redirect rule:                     sudo kubectl apply -f files/traefik/middleware-redirect-https.yaml
+#
+# Etcd metrics are a second, optional step: files/monitoring/kube-prometheus-stack-etcd.yaml
+# (needs one line in every k3s server's config first; docs/operations/monitoring-grafana.md, Phase 2).
+#
+# What this file decides, in one place:
+#   - Everything that keeps data (Prometheus, Grafana) runs on the node labelled
+#     monitoring-host=true: pick the one with the most RAM and disk (in the build, server-1, a
+#     Raspberry Pi 4 with 8 GB). Small nodes only run node-exporter. If that node is down, the
+#     dashboards are down; DNS and everything else carry on.
+#   - k3s runs the controller-manager, scheduler and kube-proxy inside the k3s process, with one
+#     metrics registry for all of them. The API server scrape already returns their metrics, so
+#     their separate scrapes are switched off here (the k3s docs: scraping one endpoint is enough).
+#   - No Alertmanager yet: alert rules still evaluate and show in Grafana (Alerting > Alert rules)
+#     and in Prometheus. Add a receiver when you decide where alerts should go (docs/operations/monitoring-grafana.md, "Later").
+#   - Only Grafana is published, through Traefik on 192.168.50.12. No new MetalLB address.
+
+# --- Alert and recording rules -----------------------------------------------------------------
+# Rule groups for parts that are not scraped are turned off, or they raise "target down" alerts
+# that mean nothing on k3s.
+defaultRules:
+  create: true
+  rules:
+    alertmanager: false          # no Alertmanager
+    etcd: false                  # turned on by kube-prometheus-stack-etcd.yaml
+    kubeControllerManager: false # inside k3s; covered by the API server scrape
+    kubeSchedulerAlerting: false
+    kubeSchedulerRecording: false
+    kubeProxy: false
+    windows: false
+
+alertmanager:
+  enabled: false
+
+# --- Grafana -----------------------------------------------------------------------------------
+grafana:
+  enabled: true
+  # Login from the Secret created before install. Never put the password in this file.
+  admin:
+    existingSecret: grafana-admin
+    userKey: admin-user
+    passwordKey: admin-password
+  defaultDashboardsTimezone: browser   # the viewer's own time zone
+  defaultDashboardsInterval: 1m
+
+  nodeSelector:
+    monitoring-host: "true"
+
+  # Grafana keeps its own SQLite database (users, preferences, dashboards made in the UI).
+  # One pod, one writer: Recreate stops the old pod before the new one starts, so two Grafanas
+  # never open the same SQLite file during an upgrade.
+  deploymentStrategy:
+    type: Recreate
+  persistence:
+    enabled: true
+    type: pvc
+    storageClassName: local-path
+    accessModes:
+      - ReadWriteOnce
+    size: 2Gi
+
+  resources:
+    requests:
+      cpu: 50m
+      memory: 192Mi
+    limits:
+      memory: 512Mi
+
+  ingress:
+    enabled: true
+    ingressClassName: traefik
+    annotations:
+      # Send http:// requests to https:// (Middleware "redirect-https" in namespace "monitoring").
+      traefik.ingress.kubernetes.io/router.middlewares: monitoring-redirect-https@kubernetescrd
+    hosts:
+      - grafana.home.example.com
+    path: /
+    # Same as Pi-hole and Homebridge: Traefik's own certificate (self-signed). The browser warns once.
+    tls: []
+
+  grafana.ini:
+    server:
+      domain: grafana.home.example.com
+      root_url: https://grafana.home.example.com
+    security:
+      cookie_secure: true
+      disable_gravatar: true
+    users:
+      allow_sign_up: false
+    auth.anonymous:
+      enabled: false
+    analytics:
+      reporting_enabled: false
+      check_for_updates: true
+    log:
+      mode: console
+      level: info
+
+  # Extra dashboards, pinned to fixed versions so a rebuild loads exactly these.
+  # Grafana's init container downloads them from GitHub at start-up.
+  dashboardProviders:
+    dashboardproviders.yaml:
+      apiVersion: 1
+      providers:
+        - name: kubernetes
+          orgId: 1
+          folder: Kubernetes
+          type: file
+          disableDeletion: true
+          editable: false
+          options:
+            path: /var/lib/grafana/dashboards/kubernetes
+        - name: nodes
+          orgId: 1
+          folder: Nodes
+          type: file
+          disableDeletion: true
+          editable: false
+          options:
+            path: /var/lib/grafana/dashboards/nodes
+        - name: apps
+          orgId: 1
+          folder: Apps
+          type: file
+          disableDeletion: true
+          editable: false
+          options:
+            path: /var/lib/grafana/dashboards/apps
+  dashboards:
+    kubernetes:
+      # dotdc/grafana-dashboards-kubernetes v3.0.8 (grafana.com 15757 to 15762)
+      k8s-views-global:
+        url: https://raw.githubusercontent.com/dotdc/grafana-dashboards-kubernetes/v3.0.8/dashboards/k8s-views-global.json
+        token: ''
+      k8s-views-namespaces:
+        url: https://raw.githubusercontent.com/dotdc/grafana-dashboards-kubernetes/v3.0.8/dashboards/k8s-views-namespaces.json
+        token: ''
+      k8s-views-nodes:
+        url: https://raw.githubusercontent.com/dotdc/grafana-dashboards-kubernetes/v3.0.8/dashboards/k8s-views-nodes.json
+        token: ''
+      k8s-views-pods:
+        url: https://raw.githubusercontent.com/dotdc/grafana-dashboards-kubernetes/v3.0.8/dashboards/k8s-views-pods.json
+        token: ''
+      k8s-system-api-server:
+        url: https://raw.githubusercontent.com/dotdc/grafana-dashboards-kubernetes/v3.0.8/dashboards/k8s-system-api-server.json
+        token: ''
+      k8s-system-coredns:
+        url: https://raw.githubusercontent.com/dotdc/grafana-dashboards-kubernetes/v3.0.8/dashboards/k8s-system-coredns.json
+        token: ''
+    nodes:
+      # Node Exporter Full (grafana.com 1860), rfmoz/grafana-dashboards at commit 99a25cc
+      node-exporter-full:
+        url: https://raw.githubusercontent.com/rfmoz/grafana-dashboards/99a25cc154c21c4fcbae1aa24352bf1b6764d847/prometheus/node-exporter-full.json
+        token: ''
+    apps:
+      # Traefik's official Kubernetes dashboard, from the Traefik release k3s v1.34.3 ships (3.5.1; match yours)
+      traefik:
+        url: https://raw.githubusercontent.com/traefik/traefik/v3.5.1/contrib/grafana/traefik-kubernetes.json
+        token: ''
+        datasource:
+          - name: DS_PROMETHEUS
+            value: prometheus
+      # Pi-hole: needs the exporter sidecar in files/pihole/values.yaml (docs/operations/monitoring-grafana.md, Step 6)
+      pihole:
+        url: https://raw.githubusercontent.com/eko/pihole-exporter/bc1bf69d511f10e76a3bca1fe08cff6f3cf4908e/grafana/dashboard.json
+        token: ''
+        datasource:
+          - name: DS_PROMETHEUS
+            value: prometheus
+
+# --- What is scraped ---------------------------------------------------------------------------
+# k3s embeds these in the k3s process; the API server scrape already carries their metrics.
+kubeControllerManager:
+  enabled: false
+kubeScheduler:
+  enabled: false
+kubeProxy:
+  enabled: false
+# Embedded etcd listens for metrics on 127.0.0.1 only until k3s gets "etcd-expose-metrics: true".
+# Turned on by kube-prometheus-stack-etcd.yaml (docs/operations/monitoring-grafana.md, Phase 2).
+kubeEtcd:
+  enabled: false
+
+# CoreDNS (k3s, kube-system) serves metrics on 9153; kept on.
+coreDns:
+  enabled: true
+
+kube-state-metrics:
+  nodeSelector:
+    monitoring-host: "true"
+  resources:
+    requests:
+      cpu: 20m
+      memory: 64Mi
+    limits:
+      memory: 192Mi
+
+# One per node, all four (Pis and the Mac VM). Host network, port 9100.
+# The node firewall keeps 9100 away from the LAN (files/firewall/k3s-firewall.sh, rule 3).
+prometheus-node-exporter:
+  resources:
+    requests:
+      cpu: 20m
+      memory: 32Mi
+    limits:
+      memory: 64Mi
+
+prometheusOperator:
+  nodeSelector:
+    monitoring-host: "true"
+  resources:
+    requests:
+      cpu: 20m
+      memory: 64Mi
+    limits:
+      memory: 192Mi
+  admissionWebhooks:
+    patch:
+      nodeSelector:
+        monitoring-host: "true"
+
+# --- Prometheus --------------------------------------------------------------------------------
+prometheus:
+  enabled: true
+  prometheusSpec:
+    nodeSelector:
+      monitoring-host: "true"
+    # Every 60 s is plenty for a home cluster and halves the work against the 30 s default.
+    scrapeInterval: 60s
+    evaluationInterval: 60s
+    # 15 days, and never more than 18 GB on disk, whichever comes first.
+    retention: 15d
+    retentionSize: 18GB
+    walCompression: true
+    externalLabels:
+      cluster: home-k3s
+    resources:
+      requests:
+        cpu: 200m
+        memory: 768Mi
+      limits:
+        memory: 2Gi
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: local-path
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 25Gi
+    # Pick up ServiceMonitors, PodMonitors and rules from every namespace and every chart
+    # (Pi-hole's PodMonitor in "pihole", the Traefik PodMonitor below), not only this release's.
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+    ruleSelectorNilUsesHelmValues: false
+    probeSelectorNilUsesHelmValues: false
+    scrapeConfigSelectorNilUsesHelmValues: false
+
+# --- Extra objects installed with this release -------------------------------------------------
+extraManifests:
+  # Traefik (bundled with k3s, kube-system) serves Prometheus metrics on its "metrics" port, 9100
+  # inside the pod. k3s annotates the pod with prometheus.io/port "8082", which is out of date
+  # for Traefik v3 and is not used here. Check the port name: docs/operations/monitoring-grafana.md, Step 7.
+  - apiVersion: monitoring.coreos.com/v1
+    kind: PodMonitor
+    metadata:
+      name: traefik
+      namespace: monitoring
+    spec:
+      namespaceSelector:
+        matchNames:
+          - kube-system
+      selector:
+        matchLabels:
+          app.kubernetes.io/name: traefik
+      podMetricsEndpoints:
+        - port: metrics
+          path: /metrics
+          interval: 60s

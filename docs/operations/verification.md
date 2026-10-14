@@ -96,7 +96,7 @@ sudo kubectl -n kube-system get endpointslices -l kubernetes.io/service-name=kub
 | --- | --- |
 | `get nodes` | Four nodes `Ready`, all with roles `control-plane,etcd` |
 | `get pods -A \| grep -v` | Prints only the header line |
-| `-n pihole get pods` | Three Pi-hole pods, one per Pi, each `2/2` |
+| `-n pihole get pods` | Three Pi-hole pods, one per Pi, each `3/3` (Pi-hole, DoH sidecar, exporter) |
 | `get pods -l k8s-app=kube-dns` | Three CoreDNS pods `Running`, on different nodes, at least one on a Pi |
 | `jsonpath ... podIPs` | Every CoreDNS pod has two addresses: a `10.42.x.x` and an `fd00:1234:5678:42xx::` one |
 | `get endpointslices` | Both `kube-dns` endpoint slices (IPv4 and IPv6) list endpoints, not `<unset>` |

@@ -75,6 +75,7 @@ PAGES = [
         ("operations/verification",                "Verification"),
         ("operations/backups-and-secrets",         "Backups-and-secrets"),
         ("operations/maintenance",                 "Maintenance"),
+        ("operations/monitoring-grafana",          "Monitoring-with-Grafana"),
         ("operations/troubleshooting",             "Troubleshooting"),
         ("operations/software-and-firmware",       "Software-and-firmware"),
         ("operations/security-review",             "Security-review"),
