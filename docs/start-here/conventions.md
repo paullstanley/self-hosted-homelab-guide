@@ -46,6 +46,7 @@ Keep the load-balancer addresses (`.10` to `.15` here) **outside** the router's 
 | --- | --- |
 | `pihole.home.example.com` | Traefik, `192.168.50.12` |
 | `grafana.home.example.com` | Traefik, `192.168.50.12` (Grafana: [Monitoring](../operations/monitoring-grafana.md)) |
+| `prometheus.home.example.com` | Traefik, `192.168.50.12` (Prometheus web UI, behind a login: [Monitoring](../operations/monitoring-grafana.md#prometheus-web-ui-behind-a-login)) |
 | `hb.home.example.com` | Traefik, `192.168.50.12` (Homebridge) |
 | `k3s.home.example.com` | Kubernetes API, `192.168.50.10` |
 | `request.example.com` | A public name on Cloudflare for Seerr |

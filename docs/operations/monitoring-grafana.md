@@ -46,7 +46,7 @@ Plus, from other files:
 ### Why these choices
 
 - **Everything that stores data on one node.** Pick the one with the most RAM and disk; in the build that is server-1, a Pi 4 with 8 GB and a 2 TB disk, while server-2 and server-3 have 2 GB each. A `monitoring-host=true` label pins Prometheus, Grafana, the operator and kube-state-metrics there. If server-1 is down, the dashboards are down; DNS, Homebridge and everything else carry on. The 2 TB disk is a spinning drive: fine for 60-second scrapes of a cluster this size.
-- **No new MetalLB address.** Grafana is a web app, so it goes behind Traefik on .12 ([Load balancers](../kubernetes/load-balancers.md)). Prometheus itself is not published at all; use the port-forward in Step 8 when you need it.
+- **No new MetalLB address.** Grafana is a web app, so it goes behind Traefik on .12 ([Load balancers](../kubernetes/load-balancers.md)). Prometheus's own UI goes there too, at `prometheus.home.example.com`, but behind a Traefik login, because Prometheus has none of its own ("Prometheus web UI" below). The port-forward in Step 8 still works without a login when you need it.
 - **One writer per SQLite file.** Grafana runs one pod with `Recreate`, so an upgrade stops the old pod before starting the new one and two Grafanas never open the same database. Prometheus keeps its own data in a single pod too. The same rule as Pi-hole: databases are never shared ([Pi-hole on k3s](../apps/pihole.md)).
 - **k3s is one process.** The controller-manager, scheduler and kube-proxy run inside k3s with one shared metrics registry, so the API server scrape already returns their metrics. The k3s docs: "It is only necessary to scrape a single K3s metric endpoint in order to get metrics for all embedded Kubernetes components." Their separate scrapes, and the rules that would call them "down", are switched off.
 - **Etcd is the exception.** Embedded etcd only serves metrics on `127.0.0.1:2381` until k3s gets `etcd-expose-metrics: true`. That needs a k3s restart on every server, so it is a separate, optional phase.
@@ -75,6 +75,8 @@ The chart needs Kubernetes 1.25 or newer (the cluster runs v1.34.3) and Helm 3.8
 ---
 
 ## Phase 1: Prometheus and Grafana
+
+**Where to run the commands.** They need this repo's files, which live on your laptop, not on the nodes. With kubectl and Helm set up on the laptop ([Client devices](../apps/client-devices.md), "kubectl from a laptop"), run every "Run on: server-1" command on the laptop, in the root of this repo, **without `sudo`** (`sudo` makes kubectl look for root's settings and fall back to `localhost:8080`). The only commands that must run on the servers themselves are Phase 2 Step 1 (each server's own k3s config) and the node firewall. The author installed it this way.
 
 ### Step 1. Check what is there
 
@@ -111,19 +113,20 @@ sudo kubectl get nodes -L monitoring-host
 
 Only server-1 shows `true`. Without the label, Prometheus and Grafana stay `Pending`.
 
-### Step 3. Namespace, Grafana login and the redirect rule
+### Step 3. Namespace, logins and the redirect rule
 
-Make up a Grafana admin password and save it in your password manager first ([Backups and secrets](backups-and-secrets.md)).
+Make up two passwords and save both in your password manager first ([Backups and secrets](backups-and-secrets.md)): the Grafana admin password, and the password for the Prometheus web UI.
 
-**Run on: server-1**, in the root of this repo. Replace `<GRAFANA_ADMIN_PASSWORD>`, keep the single quotes.
+**Run on: your laptop** (with kubectl set up: [Client devices](../apps/client-devices.md#step-6-kubectl-from-a-laptop)), in the root of this repository. Replace the two placeholders, keep the single quotes. `htpasswd` comes with macOS; on a Pi it is in the `apache2-utils` package.
 
 ```bash
-sudo kubectl create namespace monitoring
-sudo kubectl -n monitoring create secret generic grafana-admin --from-literal=admin-user=admin --from-literal=admin-password='<GRAFANA_ADMIN_PASSWORD>'
-sudo kubectl apply -f files/traefik/middleware-redirect-https.yaml
+kubectl create namespace monitoring
+kubectl -n monitoring create secret generic grafana-admin --from-literal=admin-user=admin --from-literal=admin-password='<GRAFANA_ADMIN_PASSWORD>'
+kubectl -n monitoring create secret generic prometheus-basic-auth --from-literal=users="$(htpasswd -nbB admin '<PROMETHEUS_UI_PASSWORD>')"
+kubectl apply -f files/traefik/middleware-redirect-https.yaml
 ```
 
-`apply` prints `unchanged` for the pihole and homebridge copies and `created` for `monitoring`. The password never goes in a file in this repo.
+`apply` prints `unchanged` for the pihole and homebridge copies and `created` for `monitoring`. No password ever goes in a file in this repo. The second Secret holds a bcrypt hash of the Prometheus UI password, not the password itself.
 
 ### Step 4. Install
 
@@ -266,6 +269,49 @@ Write the numbers down the first time, so a later change stands out.
 
 ---
 
+## Prometheus web UI (behind a login)
+
+**https://prometheus.home.example.com**: Prometheus's own pages. **Status → Targets** shows every scrape target up or down, **Alerts** shows every rule and what is firing, and the query box tests PromQL before you put it in a Grafana panel. Prometheus has no login of its own, so Traefik asks for a username and password first (the `prometheus-auth` Middleware in the values file, reading the Secret `prometheus-basic-auth`).
+
+On a fresh install Step 3 already created the Secret and Step 4 installed the rest. **To add it to an existing install**, from your laptop in the root of this repository:
+
+1. The login. Replace the placeholder, keep the single quotes:
+
+    ```bash
+    kubectl -n monitoring create secret generic prometheus-basic-auth --from-literal=users="$(htpasswd -nbB admin '<PROMETHEUS_UI_PASSWORD>')"
+    ```
+
+2. The ingress, the Middleware and the external URL (the same install command as Step 4; Prometheus restarts once):
+
+    ```bash
+    helm upgrade --install kps oci://ghcr.io/prometheus-community/charts/kube-prometheus-stack --version 92.3.1 -n monitoring -f files/monitoring/kube-prometheus-stack-values.yaml
+    ```
+
+    After Phase 2, add `-f files/monitoring/kube-prometheus-stack-etcd.yaml` as always.
+
+3. The name for the house (Pi-hole pods restart one at a time; DNS stays up):
+
+    ```bash
+    helm upgrade --install pihole mojo2600/pihole -n pihole --version 2.38.0 -f files/pihole/values.yaml
+    ```
+
+4. A laptop on a corporate VPN: add `prometheus.home.example.com` to the `192.168.50.12` line in `/etc/hosts` ([Client devices](../apps/client-devices.md); the full line is in `files/clients/work-mac-hosts.txt`).
+
+**Check.** **Run on: any computer at home**
+
+```sh
+curl -sk -o /dev/null -w '%{http_code}\n' https://prometheus.home.example.com/
+curl -sk -o /dev/null -w '%{http_code}\n' -u admin:'<PROMETHEUS_UI_PASSWORD>' https://prometheus.home.example.com/-/ready
+```
+
+`401` (no login), then `200`. In a browser, the page asks for the username `admin` and the password, then shows Prometheus.
+
+**Change the password.** Same as step 1 with `--dry-run=client -o yaml | kubectl apply -f -` on the end, so the Secret is replaced. Traefik picks the new one up by itself within a few seconds.
+
+**Never** route this name through a Cloudflare tunnel: basic auth over the internet is not enough for a tool that can read everything in the cluster.
+
+---
+
 ## Phase 2 (optional): etcd metrics
 
 Adds the health of the four etcd members (leader changes, slow disk writes, database size): the part of an HA cluster most worth watching. It needs one line in each server's k3s config and a k3s restart, **one server at a time**. Four etcd members tolerate one being down, so one restart at a time never loses the cluster.
@@ -330,7 +376,7 @@ In Grafana: **Kubernetes / Views / Global** shows four nodes; the target check i
 - **Leaving out the second `-f` after Phase 2.** The etcd scrape quietly disappears.
 - **Two Grafanas on one SQLite file.** Don't change `deploymentStrategy` back to `RollingUpdate` and don't raise Grafana's replicas; both can start a second pod against the same database.
 - **Putting Grafana on the Cloudflare tunnel.** It is a LAN page. If it ever needs to be reachable from outside, put an identity provider in front (Cloudflare Access) first.
-- **Publishing Prometheus.** It has no login. Use the port-forward.
+- **Publishing Prometheus without the login.** Prometheus has none of its own. Keep the `prometheus-auth` Middleware on its ingress, and keep the name off any tunnel.
 - **Editing provisioned dashboards in the UI.** They are read-only on purpose and come back on every restart. Use **Save as** to make your own copy, which lives in Grafana's volume.
 - **`helm upgrade` without `--version`.** It takes whatever is newest, including a new major version with CRD changes. Always pass the version in this file.
 - **Deleting the PVCs to "start fresh".** Grafana's holds users and your own dashboards.
@@ -346,6 +392,8 @@ In Grafana: **Kubernetes / Views / Global** shows four nodes; the target check i
 | Grafana login fails | The Secret's keys aren't `admin-user` and `admin-password`, or the password differs from what you type | `sudo kubectl -n monitoring get secret grafana-admin -o jsonpath='{.data}'` (key names only). Recreate the Secret, then `sudo kubectl -n monitoring rollout restart deploy/kps-grafana`. The password is only read on Grafana's first start with an empty database; after that change it in the UI or with `grafana cli admin reset-admin-password` inside the pod |
 | `https://grafana.home.example.com` → 404 from Traefik | No Ingress, or the host differs | `sudo kubectl -n monitoring get ingress`. Host must be exactly `grafana.home.example.com` |
 | The browser loops between http and https | Middleware missing in `monitoring`, or `root_url` changed | `sudo kubectl -n monitoring get middleware`; Step 3 |
+| `prometheus.home.example.com` gives `500` or `404` from Traefik | The `prometheus-basic-auth` Secret is missing (Traefik then refuses the route), or the Middleware isn't installed | `kubectl -n monitoring get secret prometheus-basic-auth` and `kubectl -n monitoring get middleware`; "Prometheus web UI", steps 1 and 2 |
+| Prometheus UI keeps asking for the password | Wrong password, or the Secret's key isn't `users` | Recreate the Secret exactly as in step 1 |
 | Name doesn't resolve | Pi-hole not upgraded yet, or (a laptop on a corporate VPN) its hosts file | Step 6 |
 | `traefik` target `down` | The port name isn't `metrics`, or Traefik's metrics entrypoint was turned off | Step 7 |
 | `pihole-prometheus-exporter` targets `down` | Exporter container not running, or it can't log in | `sudo kubectl -n pihole logs deploy/pihole -c exporter --tail=30`. "Unauthorized": the `pihole-admin` Secret doesn't match Pi-hole's password (Step 6) |

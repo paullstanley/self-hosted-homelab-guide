@@ -213,6 +213,7 @@ dnsmasq:
     - address=/hb.home.example.com/192.168.50.12
     - address=/traefik.home.example.com/192.168.50.12
     - address=/grafana.home.example.com/192.168.50.12
+    - address=/prometheus.home.example.com/192.168.50.12
     # Kubernetes API floating address (kube-vip)
     - address=/k3s.home.example.com/192.168.50.10
     # Router

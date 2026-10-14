@@ -1,4 +1,5 @@
 # Cluster monitoring: Prometheus + Grafana at https://grafana.home.example.com
+# Prometheus's own web UI at https://prometheus.home.example.com (behind a Traefik login).
 # Chart: kube-prometheus-stack 92.3.1 (prometheus-operator v0.94.1, Grafana 13.2.4), from the
 # chart's OCI registry. Namespace: monitoring. Release name: kps.
 #
@@ -13,6 +14,9 @@
 #     sudo kubectl -n monitoring create secret generic grafana-admin \
 #       --from-literal=admin-user=admin --from-literal=admin-password='<GRAFANA_ADMIN_PASSWORD>'
 #   - the redirect rule:                     sudo kubectl apply -f files/traefik/middleware-redirect-https.yaml
+#   - the Prometheus UI login (htpasswd ships with macOS; apache2-utils on Debian):
+#     kubectl -n monitoring create secret generic prometheus-basic-auth \
+#       --from-literal=users="$(htpasswd -nbB admin '<PROMETHEUS_UI_PASSWORD>')"
 #
 # Etcd metrics are a second, optional step: files/monitoring/kube-prometheus-stack-etcd.yaml
 # (needs one line in every k3s server's config first; docs/operations/monitoring-grafana.md, Phase 2).
@@ -27,7 +31,8 @@
 #     their separate scrapes are switched off here (the k3s docs: scraping one endpoint is enough).
 #   - No Alertmanager yet: alert rules still evaluate and show in Grafana (Alerting > Alert rules)
 #     and in Prometheus. Add a receiver when you decide where alerts should go (docs/operations/monitoring-grafana.md, "Later").
-#   - Only Grafana is published, through Traefik on 192.168.50.12. No new MetalLB address.
+#   - Grafana and the Prometheus UI are published through Traefik on 192.168.50.12. No new
+#     MetalLB address. Prometheus has no login of its own, so Traefik asks for one first.
 
 # --- Alert and recording rules -----------------------------------------------------------------
 # Rule groups for parts that are not scraped are turned off, or they raise "target down" alerts
@@ -236,7 +241,23 @@ prometheusOperator:
 # --- Prometheus --------------------------------------------------------------------------------
 prometheus:
   enabled: true
+  # Prometheus's own web UI (targets, alerts, queries). Prometheus has no login, so Traefik
+  # checks a username and password first (Middleware "prometheus-auth" below, Secret
+  # "prometheus-basic-auth"), after the http -> https redirect.
+  ingress:
+    enabled: true
+    ingressClassName: traefik
+    annotations:
+      traefik.ingress.kubernetes.io/router.middlewares: monitoring-redirect-https@kubernetescrd,monitoring-prometheus-auth@kubernetescrd
+    hosts:
+      - prometheus.home.example.com
+    paths:
+      - /
+    pathType: Prefix
+    tls: []
   prometheusSpec:
+    # The address people use, so links in the UI and in alerts point there.
+    externalUrl: https://prometheus.home.example.com
     nodeSelector:
       monitoring-host: "true"
     # Every 60 s is plenty for a home cluster and halves the work against the 30 s default.
@@ -273,6 +294,18 @@ prometheus:
 
 # --- Extra objects installed with this release -------------------------------------------------
 extraManifests:
+  # Login in front of the Prometheus UI. Reads htpasswd lines from the "users" key of the
+  # Secret prometheus-basic-auth (created by hand, never in this repo; docs/22).
+  - apiVersion: traefik.io/v1alpha1
+    kind: Middleware
+    metadata:
+      name: prometheus-auth
+      namespace: monitoring
+    spec:
+      basicAuth:
+        secret: prometheus-basic-auth
+        realm: prometheus
+        removeHeader: true
   # Traefik (bundled with k3s, kube-system) serves Prometheus metrics on its "metrics" port, 9100
   # inside the pod. k3s annotates the pod with prometheus.io/port "8082", which is out of date
   # for Traefik v3 and is not used here. Check the port name: docs/operations/monitoring-grafana.md, Step 7.

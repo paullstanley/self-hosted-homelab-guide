@@ -31,7 +31,7 @@ A device finds `pihole.home.example.com` by asking its DNS server. On the home n
 The lines to add are kept in [`files/clients/work-mac-hosts.txt`](../../files/clients/work-mac-hosts.txt):
 
 ```
-192.168.50.12 pihole.home.example.com hb.home.example.com traefik.home.example.com grafana.home.example.com
+192.168.50.12 pihole.home.example.com hb.home.example.com traefik.home.example.com grafana.home.example.com prometheus.home.example.com
 192.168.50.10 k3s.home.example.com
 ```
 
@@ -53,7 +53,7 @@ Add the current ones:
 
 ```bash
 sudo tee -a /etc/hosts <<'EOF'
-192.168.50.12 pihole.home.example.com hb.home.example.com traefik.home.example.com grafana.home.example.com
+192.168.50.12 pihole.home.example.com hb.home.example.com traefik.home.example.com grafana.home.example.com prometheus.home.example.com
 192.168.50.10 k3s.home.example.com
 EOF
 ```
@@ -127,13 +127,24 @@ Phones, tablets, TVs and other DHCP clients need nothing. Devices on the guest/I
 
 ### Step 6. kubectl from a laptop
 
-Copy `/etc/rancher/k3s/k3s.yaml` from a server to `~/.kube/config` on the laptop and change its `server:` line to the floating API address:
+The cluster's admin kubeconfig is `/etc/rancher/k3s/k3s.yaml` on every server. The laptop gets a copy in its own file, pointed at the floating API address, so it never clashes with kubeconfigs you already have (a work cluster, say).
 
-```yaml
-    server: https://192.168.50.10:6443
+**Run on: the laptop** (macOS with Homebrew; `<USER>` is your login on server-1):
+
+```bash
+brew install kubectl helm
+mkdir -p ~/.kube && ssh <USER>@192.168.50.5 'sudo cat /etc/rancher/k3s/k3s.yaml' | sed -e 's|https://127.0.0.1:6443|https://192.168.50.10:6443|' -e 's|: default$|: home-k3s|' > ~/.kube/home-k3s && chmod 600 ~/.kube/home-k3s
+echo 'export KUBECONFIG="$HOME/.kube/config:$HOME/.kube/home-k3s"' >> ~/.zshrc && source ~/.zshrc
+kubectl config use-context home-k3s
+kubectl get nodes
 ```
 
-That file is the cluster's admin key. Keep it out of any repository and out of chats. On a VPN laptop, `k3s.home.example.com` is in the hosts file from Step 1.
+Every node `Ready`. The `sed` points the file at the floating address and renames the `default` cluster, user and context to `home-k3s`. If `sudo` on the server asks for a password over ssh, copy the file on the server first (`sudo cp /etc/rancher/k3s/k3s.yaml ~/home-k3s.yaml && sudo chown $USER ~/home-k3s.yaml`), `scp` it, run the same `sed` on the laptop, and delete the copy.
+
+- **No `sudo` on the laptop.** `sudo kubectl` runs as root, finds no kubeconfig and falls back to `localhost:8080` ("connection refused"). That is not a firewall problem.
+- **Use the IP, not `k3s.home.example.com`,** unless that name is in every server's `tls-san`. The API certificate only covers the names and addresses listed there.
+- **That file is full cluster admin.** Keep it out of any repository, cloud sync and chats. It can only be revoked by rotating the cluster certificates.
+- With this, commands in the guides that say "Run on: server-1" can run on the laptop from the repository folder, without `sudo`.
 
 ## Browser issues with the home web apps
 

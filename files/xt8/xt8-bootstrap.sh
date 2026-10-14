@@ -362,6 +362,9 @@ do_verify() {
     # DNS-over-TLS: dnsmasq forwards to stubby on the router, and stubby talks to the servers.
     chk "DNS-over-TLS is switched on (WAN page)"      nveq dnspriv_enable 1
     chk "DNS-over-TLS: stubby is running"             pidof stubby
+    # With DoT, the router's own DNSSEC check can reject stubby's good answers and return
+    # SERVFAIL for every name (seen in the build). The DoT provider validates DNSSEC itself.
+    chk "DNSSEC on the router is off"                 nveq dnssec_enable 0
     chk "DNS-over-TLS: $WAN_DNS is in the server list" sh -c "nvram get dnspriv_rulelist | grep -q -- '$WAN_DNS'"
     [ -z "$WAN_DNS2" ] || chk "DNS-over-TLS: $WAN_DNS2 is in the server list" sh -c "nvram get dnspriv_rulelist | grep -q -- '$WAN_DNS2'"
   else

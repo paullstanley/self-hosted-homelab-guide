@@ -204,7 +204,7 @@ sudo kubectl -n <namespace> describe pod <name> | tail -25
 
 | Last lines say | Meaning | Fix |
 | --- | --- | --- |
-| `ImagePullBackOff`, `ErrImagePull`, "no such host" | The **node** cannot resolve or reach the image registry | On that node: `grep nameserver /etc/resolv.conf` must show `1.1.1.1` / `9.9.9.9`, and `nslookup ghcr.io` must work ([DNS design](../network/dns-design.md), [Raspberry Pi](../hardware/raspberry-pi.md)) |
+| `ImagePullBackOff`, `ErrImagePull`, "no such host" | The **node** cannot resolve or reach the image registry | On that node: `grep nameserver /etc/resolv.conf` must show `1.1.1.1` / `9.9.9.9`, and `nslookup ghcr.io` must work ([DNS design](../network/dns-design.md), [Raspberry Pi](../hardware/raspberry-pi.md)). "lookup …: Try again" on some nodes only: [Step 13](#step-13-nodes-and-the-router-cant-resolve-anything-but-pi-hole-works) |
 | `Pending`, "didn't match Pod's node affinity/selector" | A node label is missing | `sudo kubectl get nodes -L pihole-host,kube-vip-host` |
 | `Pending`, "didn't match pod topology spread constraints" | The only free node is not eligible or not Ready | Is a Pi down? The pod schedules when it returns |
 | `Pending`, "persistentvolumeclaim … not found" or "node affinity conflict" | A `local-path` volume lives on a different node | Homebridge and Seerr can only run on the node that holds their data (`server-1`) |
@@ -465,6 +465,28 @@ Hover the queue item's icon in Activity > Queue for the app's own reason; **Manu
 | No Plex Connect entry in Sonarr or Radarr, or its token expired | Add it, or **Authenticate with Plex.tv** again ([Plex Media Server, Step 12](../media/plex-media-server.md#step-12-let-sonarr-and-radarr-update-plex)) |
 | The root folder is not one of the library's folders | Add the folder to the library ([Plex Media Server, Step 6](../media/plex-media-server.md#step-6-add-the-libraries)) |
 | Plex matched it to the wrong title, or not at all | File and folder naming ([Plex Media Server, Step 7](../media/plex-media-server.md#step-7-name-the-files-the-way-plex-expects)) |
+
+### Step 13. Nodes (and the router) can't resolve anything, but Pi-hole works
+
+Seen in the build: pods stuck in `ImagePullBackOff` with `dial tcp: lookup quay.io: Try again`, on some nodes only.
+
+**Why it looks like a node problem and isn't.** The nodes ask outside resolvers (`1.1.1.1`, `9.9.9.9`), but the router's DNS Director rule redirects their port-53 traffic, UDP and TCP, to the router's own dnsmasq. dnsmasq forwards to stubby on `127.0.1.1`, and stubby asks Cloudflare over DNS-over-TLS. A node that also lists Pi-hole as a resolver keeps working, which hides the pattern.
+
+**Run on: the router**, after `getent hosts quay.io` fails on a node:
+
+| Where | Command | Healthy |
+| --- | --- | --- |
+| Through dnsmasq | `nslookup quay.io 127.0.0.1` | Addresses |
+| Straight to stubby | `nslookup quay.io 127.0.1.1` | Addresses |
+| Plain DNS out | `nslookup quay.io 1.1.1.1` | Addresses (DNS Director doesn't redirect the router itself) |
+
+| Pattern | Cause | Fix |
+| --- | --- | --- |
+| stubby answers, dnsmasq doesn't (SERVFAIL for every name) | dnsmasq's **DNSSEC** check rejecting stubby's answers. The cause in the build | WAN > **Enable DNSSEC support: No**, Apply, then `service restart_dnsmasq` (Apply alone did not restart it). The DoT provider validates DNSSEC itself; `verify` checks it stays off |
+| stubby doesn't answer either, plain DNS works | stubby can't finish TLS: clock, certificate, or port 853 blocked | `date`; `service restart_dnsmasq`; stopgap **DNS Privacy Protocol: None** |
+| Nothing answers | The router has no internet | WAN status |
+
+The tell-tale from a node: every server (`1.1.1.1`, `9.9.9.9`, the router) gives the same SERVFAIL over UDP **and** TCP while Pi-hole answers. The queries are being redirected to the router, and the router is failing. Once it answers, pods stuck on image pulls recover by themselves within about five minutes; `kubectl -n <namespace> delete pod <name>` retries at once.
 
 ## Check it
 

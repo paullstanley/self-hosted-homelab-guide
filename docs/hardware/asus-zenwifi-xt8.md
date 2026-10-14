@@ -72,7 +72,7 @@ Set these after a factory reset. Rows marked (script) are set by the bootstrap s
 | LAN > DNS Director | User Defined 2 / 3 (script) | `1.1.1.1` / blank. Neither is used by a device |
 | LAN > DNS Director | Per-device list | Restored in Step 5 |
 | WAN > Internet Connection | Connect to DNS Server automatically (script) | No |
-| WAN > Internet Connection | DNS Server (script) | Cloudflare: `1.1.1.1` and `1.0.0.1`. DNSSEC on, validate unsigned replies on, rebind protection on |
+| WAN > Internet Connection | DNS Server (script) | Cloudflare: `1.1.1.1` and `1.0.0.1`. DNSSEC **off** with DoT (it broke every lookup in the build; [DNS design](../network/dns-design.md)), rebind protection on |
 | WAN > Internet Connection | DNS Privacy Protocol | **DNS-over-TLS (DoT)**, profile Strict, servers `1.1.1.1` and `1.0.0.1` with TLS hostname `cloudflare-dns.com`, port and fingerprint blank. Set by hand; every field is explained in [DNS design](../network/dns-design.md) Step 4 |
 | WAN > Internet Connection | Prevent client auto DoH | Auto |
 | WAN > DDNS | Host name | Optional. For example `myhome.asuscomm.com` with a Let's Encrypt certificate |

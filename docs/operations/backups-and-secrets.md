@@ -271,6 +271,7 @@ Every one of these appears in the repo only as a `<PLACEHOLDER>` or not at all.
 | --- | --- | --- |
 | k3s join token | `<K3S_TOKEN>` | `/etc/rancher/k3s/config.yaml` on `server-2`, `server-3` and `server-4` ([config files](../../files/k3s/config/)) |
 | Pi-hole admin password | `<PIHOLE_ADMIN_PASSWORD>` | Kubernetes Secret `pihole-admin` in namespace `pihole`; also read by the exporter sidecar |
+| Prometheus web UI password | `<PROMETHEUS_UI_PASSWORD>` | Kubernetes Secret `prometheus-basic-auth` (key `users`, a bcrypt htpasswd line) in namespace `monitoring` ([Monitoring](monitoring-grafana.md)) |
 | Grafana admin password | `<GRAFANA_ADMIN_PASSWORD>` | Kubernetes Secret `grafana-admin` (keys `admin-user`, `admin-password`) in namespace `monitoring` ([Monitoring](monitoring-grafana.md)) |
 | TP-Link / Kasa account | `<KASA_ACCOUNT_EMAIL>`, `<KASA_ACCOUNT_PASSWORD>` | Homebridge Kasa plugin |
 | Axis camera login | `<AXIS_USER>`, `<AXIS_PASSWORD>` | Homebridge camera plugin (`source` lines) |

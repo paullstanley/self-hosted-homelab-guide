@@ -29,7 +29,7 @@ Two encrypted paths leave the house, both to Cloudflare: Pi-hole's (DNS-over-HTT
 | DNS Director, global | User Defined 1 = `192.168.50.11` | DNS Director is the router feature that rewrites port 53 traffic. Devices with a hard-coded resolver are redirected to Pi-hole anyway |
 | DNS Director, per device | **Router** | Exceptions for devices that must not depend on Pi-hole: every cluster node, and a work laptop. Their port 53 traffic is answered by the router's own resolver instead of Pi-hole, whatever server they asked for |
 | DNS Director, User Defined 2 and 3 | `1.1.1.1` and blank | Defined but not used by any device. A user-defined rule that points at a dead address leaves every device on it with no DNS |
-| Router's own upstream | DNS-over-TLS, strict, to Cloudflare `1.1.1.1` and `1.0.0.1` (`cloudflare-dns.com`); DNSSEC on | What the router itself uses, and what answers the devices on the "Router" rule. See Step 4 |
+| Router's own upstream | DNS-over-TLS, strict, to Cloudflare `1.1.1.1` and `1.0.0.1` (`cloudflare-dns.com`); the router's own DNSSEC check off (Cloudflare validates) | What the router itself uses, and what answers the devices on the "Router" rule. See Step 4 |
 | Router firewall, IPv6 | REJECT port 53 on the LAN bridge | The router must not become an IPv6 way around Pi-hole |
 | Pi-hole upstream | cloudflared sidecar, DNS-over-HTTPS to `1.1.1.1` and `1.0.0.1` | Queries leave on port 443, encrypted, so the ISP cannot read them. Because it is not port 53, **Pi-hole needs no DNS Director exception** |
 | Pi-hole pod's own DNS | `127.0.0.1`, then `1.1.1.1` | The pod resolves through itself, with an outside fallback while it starts |
@@ -135,8 +135,8 @@ This is what the router itself uses to resolve names, on WAN > Internet Connecti
 | WAN DNS Setting > DNS Server | Assign > Cloudflare (`1.1.1.1`, `1.0.0.1`) | The plain servers the router falls back on before DoT is up. Use the same provider as the DoT list |
 | Forward local domain queries to upstream DNS | No | Names under your local domain never leave the house |
 | Enable DNS Rebind protection | Yes | Drops public answers that point at private addresses |
-| Enable DNSSEC support | Yes | The router checks signatures on answers |
-| Validate unsigned DNSSEC replies | Yes | Also checks that an unsigned answer is really meant to be unsigned |
+| Enable DNSSEC support | **No** | With DoT this is a second check of what the provider already validated. In the build it was on, and one day it began rejecting stubby's good answers: every lookup by the router (and by every "Router"-rule device) returned SERVFAIL while stubby answered fine ([Troubleshooting](../operations/troubleshooting.md#step-13-nodes-and-the-router-cant-resolve-anything-but-pi-hole-works)). Cloudflare validates DNSSEC itself, and Pi-hole validates for the house |
+| Validate unsigned DNSSEC replies | No (goes with the above) | The strictest mode, and the one most likely to fail on unsigned domains |
 | Prevent client auto DoH | Auto | Tells browsers not to switch themselves to DNS-over-HTTPS and bypass your DNS |
 | DNS Privacy Protocol | DNS-over-TLS (DoT) | |
 | DNS-over-TLS Profile | Strict | Never falls back to unencrypted. Opportunistic would |
