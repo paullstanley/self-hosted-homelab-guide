@@ -78,12 +78,35 @@ grafana:
       - ReadWriteOnce
     size: 2Gi
 
+  # Grafana 13 keeps dashboards, folders and its search index in this pod, and a busy dashboard
+  # took it past the old 512Mi. At the limit the kernel throws away Grafana's file cache, every
+  # SQLite read goes back to the spinning disk, and the pod stops answering (docs/operations/monitoring-grafana.md, Troubleshooting).
   resources:
     requests:
-      cpu: 50m
-      memory: 192Mi
+      cpu: 100m
+      memory: 384Mi
     limits:
-      memory: 512Mi
+      memory: 1Gi
+
+  # The chart's readiness check allows 1 s (the Kubernetes default). When the disk is busy,
+  # /api/health (which reads SQLite) takes longer, the pod is taken out of the Service, and
+  # Traefik answers "no available server". 5 s, and six misses in a row (one minute) before that.
+  readinessProbe:
+    httpGet:
+      path: /api/health
+      port: 3000
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 6
+  # Restart only after five minutes of no answer at all (the chart: 30 s x 10 every 10 s).
+  livenessProbe:
+    httpGet:
+      path: /api/health
+      port: 3000
+    initialDelaySeconds: 60
+    periodSeconds: 30
+    timeoutSeconds: 30
+    failureThreshold: 10
 
   ingress:
     enabled: true
@@ -114,6 +137,14 @@ grafana:
     log:
       mode: console
       level: info
+    # Write-ahead log: readers no longer wait behind a writer, so a slow disk write doesn't
+    # freeze the whole UI ("database is locked", "context deadline exceeded").
+    database:
+      wal: true
+    # Nobody can set a dashboard to refresh faster than every 30 s. The CoreDNS dashboard's
+    # 10 s refresh piled up queries faster than Prometheus could answer them.
+    dashboards:
+      min_refresh_interval: 30s
 
   # Extra dashboards, pinned to fixed versions so a rebuild loads exactly these.
   # Grafana's init container downloads them from GitHub at start-up.
